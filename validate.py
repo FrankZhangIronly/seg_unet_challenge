@@ -1,31 +1,14 @@
-import torch
 from torch import Tensor
 import torch.nn.functional as F
-from tqdm import tqdm
-from PIL import Image
 
-from utils.dice_score import multiclass_dice_coeff, dice_coeff
-
-import argparse
-import logging
 import os
-import random
-import sys
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
-import torchvision.transforms.functional as TF
 from pathlib import Path
-from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-#import wandb
-from evaluate import evaluate
 from unet import UNet
 from utils.data_loading import BasicDataset, CarvanaDataset
-from utils.dice_score import dice_loss
 
 def classwise_dice_coeff(input: Tensor, target: Tensor, epsilon: float = 1e-6):
 
@@ -58,11 +41,9 @@ def validate(net, dataloader, device, num_classes, mask_values, epsilon=1e-6):
         for batch in tqdm(dataloader, total=num_val_batches, desc='Validation round', unit='batch', leave=False):
             image, mask_true = batch['image'], batch['mask']
 
-            # Move data to the appropriate device
             image = image.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
             mask_true = mask_true.to(device=device, dtype=torch.long)
 
-            # Predict the mask
             mask_pred = net(image)
 
             # Convert predictions to one-hot format
@@ -75,14 +56,11 @@ def validate(net, dataloader, device, num_classes, mask_values, epsilon=1e-6):
 
             # Compute class-wise Dice scores for the batch
             batch_dice_scores = torch.tensor(classwise_dice_coeff(mask_pred_onehot, mask_true_onehot, epsilon=epsilon), device=device)
-            
-            # Sum up Dice scores across batches
+
             class_dice_scores += batch_dice_scores
 
-    # Average Dice scores across batches
     class_dice_scores /= num_val_batches
 
-    # Convert to a Python list for readability
     return class_dice_scores.cpu().tolist()
 
 if  __name__  == '__main__':
@@ -108,8 +86,7 @@ if  __name__  == '__main__':
     net.eval()
     num_val_batches = len(dataloader)
     dice_score = 0
-    
-    # Example usage
+
     dice_scores = validate(
     net=net,
     dataloader=dataloader,
